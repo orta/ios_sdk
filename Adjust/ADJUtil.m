@@ -207,12 +207,45 @@ static NSDateFormatter *dateFormat;
                  prefixErrorMessage:(NSString *)prefixErrorMessage
            suffixErrorMessage:(NSString *)suffixErrorMessage
 {
-    NSError *responseError = nil;
-    NSHTTPURLResponse *urlResponse = nil;
+    //[NSURLConnection sendSynchronousRequest:request returningResponse:&urlResponse error:&responseError];
 
-    NSData *responseData = [NSURLConnection sendSynchronousRequest:request
-                                                 returningResponse:&urlResponse
-                                                             error:&responseError];
+    SEL sendSRSelector = NSSelectorFromString(@"sendSynchronousRequest:returningResponse:error:");
+    if (![NSURLConnection respondsToSelector:sendSRSelector]) {
+        [ADJAdjustFactory.logger error:@"NSURLConnectionClass respondsToSelector sendSynchronousRequestSelector nil"];
+        return nil;
+    }
+
+    NSMethodSignature * sendSRMethodSignature = [NSURLConnection methodSignatureForSelector:sendSRSelector];
+
+    if (sendSRMethodSignature == nil) {
+        [ADJAdjustFactory.logger error:@"sendSynchronousRequestMethodSignature nil"];
+        return nil;
+    }
+
+    NSInvocation * sendSRInvocation = [NSInvocation invocationWithMethodSignature:sendSRMethodSignature];
+    if (sendSRInvocation == nil) {
+        [ADJAdjustFactory.logger error:@"sendSRInvocation nil"];
+        return nil;
+    }
+
+    [sendSRInvocation setSelector:sendSRSelector];
+    [sendSRInvocation setTarget:[NSURLConnection class]];
+
+    NSError * __autoreleasing responseError = nil;
+    NSError * __autoreleasing *responseErrorPtr = &responseError;
+
+    NSHTTPURLResponse * __autoreleasing urlResponse = nil;
+    NSHTTPURLResponse * __autoreleasing * urlResponsePtr = &urlResponse;
+
+    [sendSRInvocation setArgument:&request atIndex:2];
+    [sendSRInvocation setArgument:&urlResponsePtr atIndex:3];
+    [sendSRInvocation setArgument:&responseErrorPtr atIndex:4];
+
+    [sendSRInvocation invoke];
+
+    NSData *responseData;
+
+    [sendSRInvocation getReturnValue:&responseData];
 
     // connection error
     if (responseError != nil) {

@@ -185,12 +185,6 @@ static NSDateFormatter *dateFormat;
     return value == nil || value == (id)[NSNull null];
 }
 
-+ (NSDictionary *)sendRequest:(NSMutableURLRequest *)request
-                 prefixErrorMessage:(NSString *)prefixErrorMessage
-{
-    return [ADJUtil sendRequest:request prefixErrorMessage:prefixErrorMessage suffixErrorMessage:nil];
-}
-
 + (NSString *)formatErrorMessage:(NSString *)prefixErrorMessage
               systemErrorMessage:(NSString *)systemErrorMessage
               suffixErrorMessage:(NSString *)suffixErrorMessage
@@ -203,66 +197,13 @@ static NSDateFormatter *dateFormat;
     }
 }
 
-+ (NSDictionary *)sendRequest:(NSMutableURLRequest *)request
-                 prefixErrorMessage:(NSString *)prefixErrorMessage
-           suffixErrorMessage:(NSString *)suffixErrorMessage
++ (NSDictionary *)completedRequest:(NSData *)responseData
+                        statusCode:(NSInteger)statusCode
+                prefixErrorMessage:(NSString *)prefixErrorMessage
+                suffixErrorMessage:(NSString *)suffixErrorMessage
 {
-    //[NSURLConnection sendSynchronousRequest:request returningResponse:&urlResponse error:&responseError];
-
-    SEL sendSRSelector = NSSelectorFromString(@"sendSynchronousRequest:returningResponse:error:");
-    if (![NSURLConnection respondsToSelector:sendSRSelector]) {
-        [ADJAdjustFactory.logger error:@"NSURLConnectionClass respondsToSelector sendSynchronousRequestSelector nil"];
-        return nil;
-    }
-
-    NSMethodSignature * sendSRMethodSignature = [NSURLConnection methodSignatureForSelector:sendSRSelector];
-
-    if (sendSRMethodSignature == nil) {
-        [ADJAdjustFactory.logger error:@"sendSynchronousRequestMethodSignature nil"];
-        return nil;
-    }
-
-    NSInvocation * sendSRInvocation = [NSInvocation invocationWithMethodSignature:sendSRMethodSignature];
-    if (sendSRInvocation == nil) {
-        [ADJAdjustFactory.logger error:@"sendSRInvocation nil"];
-        return nil;
-    }
-
-    [sendSRInvocation setSelector:sendSRSelector];
-    [sendSRInvocation setTarget:[NSURLConnection class]];
-
-    NSError * __autoreleasing responseError = nil;
-    NSError * __autoreleasing *responseErrorPtr = &responseError;
-
-    NSHTTPURLResponse * __autoreleasing urlResponse = nil;
-    NSHTTPURLResponse * __autoreleasing * urlResponsePtr = &urlResponse;
-
-    [sendSRInvocation setArgument:&request atIndex:2];
-    [sendSRInvocation setArgument:&urlResponsePtr atIndex:3];
-    [sendSRInvocation setArgument:&responseErrorPtr atIndex:4];
-
-    [sendSRInvocation invoke];
-
-    NSData *responseData;
-
-    [sendSRInvocation getReturnValue:&responseData];
-
-    // connection error
-    if (responseError != nil) {
-        [ADJAdjustFactory.logger error:[ADJUtil formatErrorMessage:prefixErrorMessage
-                                                systemErrorMessage:responseError.localizedDescription
-                                                suffixErrorMessage:suffixErrorMessage]];
-        return nil;
-    }
-    if ([ADJUtil isNull:responseData]) {
-        [ADJAdjustFactory.logger error:[ADJUtil formatErrorMessage:prefixErrorMessage
-                                                systemErrorMessage:@"empty error"
-                                                suffixErrorMessage:suffixErrorMessage]];
-        return nil;
-    }
 
     NSString *responseString = [[[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding] adjTrim];
-    NSInteger statusCode = urlResponse.statusCode;
 
     [ADJAdjustFactory.logger verbose:@"Response: %@", responseString];
 
@@ -283,7 +224,92 @@ static NSDateFormatter *dateFormat;
     } else {
         [ADJAdjustFactory.logger error:@"%@", messageResponse];
     }
-
+    
     return jsonDict;
+}
+
++ (void)sendRequest:(NSMutableURLRequest *)request
+   prefixErrorMessage:(NSString *)prefixErrorMessage
+  jsonResponseHandler:(void (^) (NSDictionary * jsonDict))jsonResponseHandler
+{
+    [ADJUtil sendRequest:request
+      prefixErrorMessage:prefixErrorMessage
+      suffixErrorMessage:nil
+     jsonResponseHandler:jsonResponseHandler];
+}
+
++ (void)sendRequest:(NSMutableURLRequest *)request
+                 prefixErrorMessage:(NSString *)prefixErrorMessage
+           suffixErrorMessage:(NSString *)suffixErrorMessage
+                jsonResponseHandler:(void (^) (NSDictionary * jsonDict))jsonResponseHandler
+{
+    //[NSURLConnection sendSynchronousRequest:request returningResponse:&urlResponse error:&responseError];
+    //@autoreleasepool {
+
+        SEL sendSRSelector = NSSelectorFromString(@"sendSynchronousRequest:returningResponse:error:");
+        if (![NSURLConnection respondsToSelector:sendSRSelector]) {
+            [ADJAdjustFactory.logger error:@"NSURLConnectionClass respondsToSelector sendSynchronousRequestSelector nil"];
+            jsonResponseHandler(nil);
+            return;
+        }
+
+        NSMethodSignature * sendSRMethodSignature = [NSURLConnection methodSignatureForSelector:sendSRSelector];
+
+        if (sendSRMethodSignature == nil) {
+            [ADJAdjustFactory.logger error:@"sendSynchronousRequestMethodSignature nil"];
+            jsonResponseHandler(nil);
+            return;
+        }
+
+        NSInvocation * sendSRInvocation = [NSInvocation invocationWithMethodSignature:sendSRMethodSignature];
+        if (sendSRInvocation == nil) {
+            [ADJAdjustFactory.logger error:@"sendSRInvocation nil"];
+            jsonResponseHandler(nil);
+            return;
+        }
+
+        [sendSRInvocation setSelector:sendSRSelector];
+        [sendSRInvocation setTarget:[NSURLConnection class]];
+
+        NSError __autoreleasing * responseError;
+        NSError * __autoreleasing * responseErrorPtr = &responseError;
+
+        NSHTTPURLResponse __autoreleasing * urlResponse;
+        NSHTTPURLResponse * __autoreleasing * urlResponsePtr = &urlResponse;
+
+        [sendSRInvocation setArgument:&request atIndex:2];
+        [sendSRInvocation setArgument:&urlResponsePtr atIndex:3];
+        [sendSRInvocation setArgument:&responseErrorPtr atIndex:4];
+
+        [sendSRInvocation invoke];
+
+        NSData *responseData;
+
+        [sendSRInvocation getReturnValue:&responseData];
+
+        // connection error
+        if (responseError != nil) {
+            [ADJAdjustFactory.logger error:[ADJUtil formatErrorMessage:prefixErrorMessage
+                                                    systemErrorMessage:responseError.localizedDescription
+                                                    suffixErrorMessage:suffixErrorMessage]];
+            jsonResponseHandler(nil);
+            return;
+        }
+        if ([ADJUtil isNull:responseData]) {
+            [ADJAdjustFactory.logger error:[ADJUtil formatErrorMessage:prefixErrorMessage
+                                                    systemErrorMessage:@"empty error"
+                                                    suffixErrorMessage:suffixErrorMessage]];
+            jsonResponseHandler(nil);
+            return;
+        }
+
+        NSInteger statusCode = urlResponse.statusCode;
+
+        NSDictionary * jsonDict = [ADJUtil completedRequest:responseData
+                                                 statusCode:statusCode
+                                         prefixErrorMessage:prefixErrorMessage
+                                         suffixErrorMessage:suffixErrorMessage];
+        jsonResponseHandler(jsonDict);
+    //}
 }
 @end

@@ -30,7 +30,7 @@
     // Dispose of any resources that can be recreated.
 }
 - (IBAction)clickTrackSimpleEvent:(UIButton *)sender {
-    ADJEvent *event = [ADJEvent eventWithEventToken:@"{YourEventToken}"];
+    ADJEvent *event = [ADJEvent eventWithEventToken:@"123456"];
 
     [Adjust trackEvent:event];
 }

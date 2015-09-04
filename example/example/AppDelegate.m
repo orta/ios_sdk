@@ -19,7 +19,7 @@
     // Override point for customization after application launch.
 
     // configure adjust
-    NSString *yourAppToken = @"{YourAppToken}";
+    NSString *yourAppToken = @"pezwd5bre2xb";
     NSString *environment = ADJEnvironmentSandbox;
     ADJConfig *adjustConfig = [ADJConfig configWithAppToken:yourAppToken environment:environment];
 

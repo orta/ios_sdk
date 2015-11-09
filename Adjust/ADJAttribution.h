@@ -34,6 +34,9 @@
 // tracker click_label
 @property (nonatomic, copy) NSString *clickLabel;
 
+// tracker deeplink
+@property (nonatomic, copy) NSString *deeplink;
+
 - (BOOL)isEqualToAttribution:(ADJAttribution *)attribution;
 
 + (ADJAttribution *)dataWithJsonDict:(NSDictionary *)jsonDict;

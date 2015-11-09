@@ -25,16 +25,22 @@
 - (void)setDeviceToken:(NSData *)deviceToken;
 
 - (ADJAttribution*) attribution;
-- (void) setAttribution:(ADJAttribution*)attribution;
-- (void) setAskingAttribution:(BOOL)askingAttribution;
+- (void)setAttribution:(ADJAttribution*)attribution;
+- (void)setAskingAttribution:(BOOL)askingAttribution;
 
-- (BOOL) updateAttribution:(ADJAttribution*) attribution;
-- (void) setIadDate:(NSDate*)iAdImpressionDate withPurchaseDate:(NSDate*)appPurchaseDate;
+- (void)updateAttribution:(ADJAttribution*) attribution
+          sessionDeeplink:(NSString*)sessionDeeplink
+      launchAttributionDeeplink:(BOOL)launchAttributionDeeplink;
 
-- (void) launchAttributionDelegate;
+- (void)setIadDate:(NSDate*)iAdImpressionDate withPurchaseDate:(NSDate*)appPurchaseDate;
 
-- (void) setOfflineMode:(BOOL)offline;
+- (void)launchAttributionDelegate:(void(^)(void))attributionDelegateFinishCallback;
 
+- (void)setOfflineMode:(BOOL)offline;
+
+- (void)launchDeepLink:(NSString *)deeplink;
+
+- (void)launchSessionDeepLink:(NSString *)deeplink;
 @end
 
 @interface ADJActivityHandler : NSObject <ADJActivityHandler>

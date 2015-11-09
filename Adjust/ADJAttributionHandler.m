@@ -62,9 +62,9 @@ static const double kRequestTimeout = 60; // 60 seconds
     return self;
 }
 
-- (void) checkAttribution:(NSDictionary *)jsonDict {
+- (void) checkResponse:(NSDictionary *)jsonDict {
     dispatch_async(self.internalQueue, ^{
-        [self checkAttributionInternal:jsonDict];
+        [self checkResponseInternal:jsonDict];
     });
 }
 
@@ -96,8 +96,20 @@ static const double kRequestTimeout = 60; // 60 seconds
 }
 
 #pragma mark - internal
--(void) checkAttributionInternal:(NSDictionary *)jsonDict {
-    if ([ADJUtil isNull:jsonDict]) return;
+
+// session deeplink to launch always, but after the
+//  attribution changed delegate if it exists
+-(void) checkResponseInternal:(NSDictionary *)jsonDict
+{
+    if ([ADJUtil isNull:jsonDict]) {
+        return;
+    }
+
+    NSString * sessionDeeplink = [jsonDict objectForKey:@"deeplink"];
+
+    // TODO parse this correctly
+    NSNumber* considerDeeplink = [jsonDict objectForKey :@"consider_deeplink"];
+    BOOL launchAttributionDeeplink = [considerDeeplink boolValue];
 
     NSDictionary* jsonAttribution = [jsonDict objectForKey:@"attribution"];
     ADJAttribution *attribution = [ADJAttribution dataWithJsonDict:jsonAttribution];
@@ -105,12 +117,16 @@ static const double kRequestTimeout = 60; // 60 seconds
     NSNumber *timerMilliseconds = [jsonDict objectForKey:@"ask_in"];
 
     if (timerMilliseconds == nil) {
-        [self.activityHandler updateAttribution:attribution];
+        [self.activityHandler updateAttribution:attribution
+                                sessionDeeplink:sessionDeeplink
+                            launchAttributionDeeplink:launchAttributionDeeplink];
 
         [self.activityHandler setAskingAttribution:NO];
 
         return;
     };
+
+    [self.activityHandler launchSessionDeepLink:sessionDeeplink];
 
     [self.activityHandler setAskingAttribution:YES];
 
@@ -130,7 +146,7 @@ static const double kRequestTimeout = 60; // 60 seconds
     [ADJUtil sendRequest:[self request]
       prefixErrorMessage:@"Failed to get attribution"
      jsonResponseHandler:^(NSDictionary *jsonDict) {
-         [self checkAttribution:jsonDict];
+         [self checkResponse:jsonDict];
      }];
 }
 

@@ -31,6 +31,7 @@
     self.adgroup      = [jsonDict objectForKey:@"adgroup"];
     self.creative     = [jsonDict objectForKey:@"creative"];
     self.clickLabel   = [jsonDict objectForKey:@"click_label"];
+    self.deeplink     = [jsonDict objectForKey:@"deeplink"];
 
     return self;
 }
@@ -58,6 +59,9 @@
         return NO;
     }
     if (![NSString adjIsEqual:self.clickLabel toString:attribution.clickLabel]) {
+        return NO;
+    }
+    if (![NSString adjIsEqual:self.deeplink toString:attribution.deeplink]) {
         return NO;
     }
 
@@ -95,13 +99,17 @@
         [responseDataDic setObject:self.clickLabel forKey:@"click_label"];
     }
 
+    if (self.deeplink != nil) {
+        [responseDataDic setObject:self.clickLabel forKey:@"deeplink"];
+    }
+
     return responseDataDic;
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"tt:%@ tn:%@ net:%@ cam:%@ adg:%@ cre:%@ cl:%@",
+    return [NSString stringWithFormat:@"tt:%@ tn:%@ net:%@ cam:%@ adg:%@ cre:%@ cl:%@ dl:%@",
             self.trackerToken, self.trackerName, self.network, self.campaign,
-            self.adgroup, self.creative, self.clickLabel];
+            self.adgroup, self.creative, self.clickLabel, self.deeplink];
 }
 
 
@@ -136,6 +144,7 @@
         copy.adgroup      = [self.adgroup copyWithZone:zone];
         copy.creative     = [self.creative copyWithZone:zone];
         copy.clickLabel   = [self.clickLabel copyWithZone:zone];
+        copy.deeplink     = [self.deeplink copyWithZone:zone];
     }
 
     return copy;
@@ -154,7 +163,9 @@
     self.campaign     = [decoder decodeObjectForKey:@"campaign"];
     self.adgroup      = [decoder decodeObjectForKey:@"adgroup"];
     self.creative     = [decoder decodeObjectForKey:@"creative"];
+    // defaults to nil
     self.clickLabel   = [decoder decodeObjectForKey:@"click_label"];
+    self.deeplink     = [decoder decodeObjectForKey:@"deeplink"];
 
     return self;
 }
@@ -167,6 +178,7 @@
     [encoder encodeObject:self.adgroup      forKey:@"adgroup"];
     [encoder encodeObject:self.creative     forKey:@"creative"];
     [encoder encodeObject:self.clickLabel   forKey:@"click_label"];
+    [encoder encodeObject:self.deeplink     forKey:@"deeplink"];
 }
 
 @end

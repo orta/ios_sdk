@@ -100,26 +100,43 @@ static const char * const kInternalQueueName     = "io.adjust.ActivityQueue";
 }
 
 - (void)finishedTracking:(NSDictionary *)jsonDict{
-    if ([ADJUtil isNull:jsonDict]) return;
-
-    [self launchDeepLink:jsonDict];
-    [self.attributionHandler checkAttribution:jsonDict];
+    dispatch_async(self.internalQueue, ^{
+        [self finishedTrackingInternal:jsonDict];
+    });
 }
 
-- (void)launchDeepLink:(NSDictionary *)jsonDict{
+- (void)finishedTrackingInternal:(NSDictionary *)jsonDict{
     if ([ADJUtil isNull:jsonDict]) return;
 
-    NSString *deepLink = [jsonDict objectForKey:@"deeplink"];
-    if (deepLink == nil) return;
 
-    NSURL* deepLinkUrl = [NSURL URLWithString:deepLink];
+    [self.attributionHandler checkResponse:jsonDict];
+}
 
-    [self.logger info:@"Open deep link (%@)", deepLink];
+- (void)launchSessionDeeplink:(NSString *)sessionDeeplink {
+    dispatch_async(self.internalQueue, ^{
+        [self launchSessionDeeplinkInternal:sessionDeeplink];
+    });
+}
 
-    BOOL success = [[UIApplication sharedApplication] openURL:deepLinkUrl];
+- (void)launchSessionDeeplinkInternal:(NSString *)sessionDeeplink {
+    if (![ADJUtil isNull:sessionDeeplink]) {
+        self.activityState.sessionDeeplink = sessionDeeplink;
+        [self writeActivityState];
+    }
+    [self launchDeepLink:sessionDeeplink];
+}
+
+- (void)launchDeepLink:(NSString *)deeplink{
+    if ([ADJUtil isNull:deeplink]) return;
+
+    NSURL* deeplinkUrl = [NSURL URLWithString:deeplink];
+
+    [self.logger info:@"Open deep link (%@)", deeplink];
+
+    BOOL success = [[UIApplication sharedApplication] openURL:deeplinkUrl];
 
     if (!success) {
-        [self.logger error:@"Unable to open deep link (%@)", deepLink];
+        [self.logger error:@"Unable to open deep link (%@)", deeplink];
     }
 }
 
@@ -240,30 +257,35 @@ remainsPausedMessage:(NSString *)remainsPausedMessage
     [self.packageHandler addPackage:clickPackage];
 }
 
-- (BOOL)updateAttribution:(ADJAttribution *)attribution {
-    if (attribution == nil) {
-        return NO;
-    }
-    if ([attribution isEqual:self.attribution]) {
-        return NO;
-    }
-    self.attribution = attribution;
-    [self writeAttribution];
-
-    [self launchAttributionDelegate];
-
-    return YES;
+- (void)updateAttribution:(ADJAttribution *)attribution
+          sessionDeeplink:(NSString *)sessionDeeplink
+      launchAttributionDeeplink:(BOOL)launchAttributionDeeplink
+{
+    dispatch_async(self.internalQueue, ^{
+        [self updateAttributionInternal:attribution
+                        sessionDeeplink:sessionDeeplink
+                    launchAttributionDeeplink:launchAttributionDeeplink];
+    });
 }
 
-- (void)launchAttributionDelegate{
+- (void)launchAttributionDelegate:
+(void(^)(void))attributionDelegateFinishCallback {
     if (self.delegate == nil) {
         return;
     }
     if (![self.delegate respondsToSelector:@selector(adjustAttributionChanged:)]) {
         return;
     }
+    [self performSelectorInBackground:@selector(launchAttributionDelegateWithFinishCallback:)
+                                    withObject:attributionDelegateFinishCallback];
+}
+
+- (void)launchAttributionDelegateWithFinishCallback:
+(void(^)(void))attributionDelegateFinishCallback {
     [self.delegate performSelectorOnMainThread:@selector(adjustAttributionChanged:)
-                                    withObject:self.attribution waitUntilDone:NO];
+                                    withObject:self.attribution waitUntilDone:YES];
+
+    attributionDelegateFinishCallback();
 }
 
 - (void)setAskingAttribution:(BOOL)askingAttribution {
@@ -538,6 +560,54 @@ remainsPausedMessage:(NSString *)remainsPausedMessage
     token = [token stringByReplacingOccurrencesOfString:@" " withString:@""];
 
     self.deviceInfo.pushToken = token;
+}
+
+- (void) updateAttributionInternal:(ADJAttribution *)attribution
+                   sessionDeeplink:(NSString *)sessionDeeplink
+               launchAttributionDeeplink:(BOOL)launchAttributionDeeplink
+{
+    // if there is no attribution exit, but first try to launch session deeplink
+    if (attribution == nil) {
+        [self launchSessionDeeplinkInternal:sessionDeeplink];
+        return;
+    }
+
+    BOOL isNewAttribution = ![attribution isEqual:self.attribution];
+
+    NSString * attributionDeeplink = attribution.deeplink;
+    BOOL isNewDeeplink = attributionDeeplink != nil &&
+        ![attributionDeeplink isEqualToString:self.activityState.sessionDeeplink];
+
+    BOOL hasSessionDeeplink = sessionDeeplink != nil;
+
+    // as long as there is any attribution and not a new session deeplink, remove previous session deeplink
+    if (self.activityState.sessionDeeplink != nil
+        && !hasSessionDeeplink)
+    {
+        self.activityState.sessionDeeplink = nil;
+        [self writeActivityState];
+    }
+
+    // exit if there is no new attribution
+    if (!isNewAttribution) {
+        [self launchSessionDeeplinkInternal:sessionDeeplink];
+        return;
+    }
+
+    self.attribution = attribution;
+    [self writeAttribution];
+    [self launchAttributionDelegate:^() {
+        // session deeplink always gets launched instead of a possible attribution deeplink
+        if (hasSessionDeeplink) {
+            [self launchSessionDeeplink:sessionDeeplink];
+            return;
+        }
+
+        // with new attribution and new deeplink => launch the new deeplink
+        if (isNewDeeplink) {
+            [self launchDeepLink:attributionDeeplink];
+        }
+    }];
 }
 
 #pragma mark - private

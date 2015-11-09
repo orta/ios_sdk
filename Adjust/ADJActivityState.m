@@ -31,6 +31,7 @@ static const int kTransactionIdCount = 10;
     self.transactionIds  = [NSMutableArray arrayWithCapacity:kTransactionIdCount];
     self.enabled         = YES;
     self.askingAttribution           = NO;
+    self.sessionDeeplink = nil;
 
     return self;
 }
@@ -60,9 +61,9 @@ static const int kTransactionIdCount = 10;
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"ec:%d sc:%d ssc:%d ask:%d sl:%.1f ts:%.1f la:%.1f",
+    return [NSString stringWithFormat:@"ec:%d sc:%d ssc:%d ask:%d sl:%.1f ts:%.1f la:%.1f dl:%@",
             self.eventCount, self.sessionCount, self.subsessionCount, self.askingAttribution, self.sessionLength,
-            self.timeSpent, self.lastActivity];
+            self.timeSpent, self.lastActivity, self.sessionDeeplink];
 }
 
 #pragma mark NSCoding
@@ -107,6 +108,9 @@ static const int kTransactionIdCount = 10;
         self.askingAttribution = NO;
     }
 
+    // defaults to nil
+    self.sessionDeeplink = [decoder decodeObjectForKey:@"sessionDeeplink"];
+
     self.lastInterval = -1;
 
     return self;
@@ -123,6 +127,7 @@ static const int kTransactionIdCount = 10;
     [encoder encodeObject:self.transactionIds  forKey:@"transactionIds"];
     [encoder encodeBool:self.enabled           forKey:@"enabled"];
     [encoder encodeBool:self.askingAttribution forKey:@"askingAttribution"];
+    [encoder encodeObject:self.sessionDeeplink forKey:@"sessionDeeplink"];
 }
 
 -(id)copyWithZone:(NSZone *)zone
@@ -139,6 +144,7 @@ static const int kTransactionIdCount = 10;
         copy.enabled           = self.enabled;
         copy.lastActivity      = self.lastActivity;
         copy.askingAttribution = self.askingAttribution;
+        copy.sessionDeeplink   = self.sessionDeeplink;
         // transactionIds not copied
     }
     

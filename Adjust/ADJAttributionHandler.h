@@ -17,7 +17,7 @@
                  startPaused:(BOOL)startPaused
                   hasDelegate:(BOOL)hasDelegate;
 
-- (void)checkAttribution:(NSDictionary *)jsonDict;
+- (void)checkResponse:(NSDictionary *)jsonDict;
 
 - (void)getAttribution;
 

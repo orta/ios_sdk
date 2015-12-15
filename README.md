@@ -419,6 +419,16 @@ ADJEvent *event = [ADJEvent eventWithEventToken:@"abc123"];
 You can read more about special partners and these integrations in our
 [guide to special partners.][special-partners]
 
+### 13. Push token
+
+To send us the push notification token, then add the following call to `Adjust` in the `didRegisterForRemoteNotificationsWithDeviceToken` of your app delegate:
+
+```objc
+- (void)application:(UIApplication *)app didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
+    [Adjust setDeviceToken:deviceToken];
+}
+```
+
 [adjust.com]: http://adjust.com
 [cocoapods]: http://cocoapods.org
 [carthage]: https://github.com/Carthage/Carthage
